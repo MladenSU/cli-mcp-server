@@ -8,6 +8,8 @@ comprehensive security features.
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)
 ![MCP Protocol](https://img.shields.io/badge/MCP-Compatible-green)
+
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/MladenSU/cli-mcp-server)](https://archestra.ai/mcp-catalog/mladensu__cli-mcp-server)
 [![smithery badge](https://smithery.ai/badge/cli-mcp-server)](https://smithery.ai/protocol/cli-mcp-server)
 [![Python Tests](https://github.com/MladenSU/cli-mcp-server/actions/workflows/python-tests.yml/badge.svg)](https://github.com/MladenSU/cli-mcp-server/actions/workflows/python-tests.yml)
 
