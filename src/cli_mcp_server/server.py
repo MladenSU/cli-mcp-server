@@ -50,6 +50,7 @@ class SecurityConfig:
     allow_all_commands: bool = False
     allow_all_flags: bool = False
     allow_shell_operators: bool = False
+    help: str = ""
 
 
 class CommandExecutor:
@@ -203,7 +204,7 @@ class CommandExecutor:
             validated_args = []
             for arg in args:
                 is_explicit_path = (arg.startswith(("./", "../", "/")) and not arg.startswith("//")) or arg == "."
-                
+
                 if arg.startswith("-"):
                     if (
                         not self.security_config.allow_all_flags
@@ -399,6 +400,7 @@ def load_security_config() -> SecurityConfig:
     allowed_commands = os.getenv("ALLOWED_COMMANDS", "ls,cat,pwd")
     allowed_flags = os.getenv("ALLOWED_FLAGS", "-l,-a,--help")
     allow_shell_operators_env = os.getenv("ALLOW_SHELL_OPERATORS", "false")
+    help = os.getenv("GET_HELP", "")
 
     allow_all_commands = allowed_commands.lower() == "all"
     allow_all_flags = allowed_flags.lower() == "all"
@@ -414,6 +416,7 @@ def load_security_config() -> SecurityConfig:
         allow_all_commands=allow_all_commands,
         allow_all_flags=allow_all_flags,
         allow_shell_operators=allow_shell_operators,
+        help=help
     )
 
 
@@ -435,6 +438,22 @@ async def handle_list_tools() -> list[types.Tool]:
         else ", ".join(executor.security_config.allowed_flags)
     )
 
+    help_output = (
+        subprocess.run(
+            executor.security_config.help,
+            shell=True,
+            text=True,
+            capture_output=True,
+            timeout=executor.security_config.command_timeout,
+            cwd=executor.allowed_dir,
+        ).stdout.strip()
+        if executor.security_config.help
+        else ""
+    )
+
+    # Clean up any control characters from man output
+    help_output = re.sub(r'(.)\x08\1|_\x08(.)', r'\1\2', help_output)
+
     return [
         types.Tool(
             name="run_command",
@@ -442,7 +461,8 @@ async def handle_list_tools() -> list[types.Tool]:
                 f"Allows command (CLI) execution in the directory: {executor.allowed_dir}\n\n"
                 f"Available commands: {commands_desc}\n"
                 f"Available flags: {flags_desc}\n\n"
-                f"Shell operators (&&, ||, |, >, >>, <, <<, ;) are {'supported' if executor.security_config.allow_shell_operators else 'not supported'}. Set ALLOW_SHELL_OPERATORS=true to enable."
+                f"Shell operators (&&, ||, |, >, >>, <, <<, ;) are {'supported' if executor.security_config.allow_shell_operators else 'not supported'}. Set ALLOW_SHELL_OPERATORS=true to enable.\n"
+                f"{help_output}"
             ),
             inputSchema={
                 "type": "object",

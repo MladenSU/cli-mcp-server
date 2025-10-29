@@ -64,6 +64,7 @@ Configure the server using environment variables:
 | `MAX_COMMAND_LENGTH`| Maximum command string length                        | `1024`            |
 | `COMMAND_TIMEOUT`   | Command execution timeout (seconds)                  | `30`              |
 | `ALLOW_SHELL_OPERATORS` | Allow shell operators (&&, \|\|, \|, >, etc.)    | `false`           |
+| `GET_HELP`          | Command to get help (eg: `git --help`, `man ls`)     | `""`              |
 
 Note: Setting `ALLOWED_COMMANDS` or `ALLOWED_FLAGS` to 'all' will allow any command or flag respectively.
 
