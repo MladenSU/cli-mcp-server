@@ -36,6 +36,10 @@ comprehensive security features.
 
 ---
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/mladensu-cli-mcp-server).
+
 ## Overview
 
 This MCP server enables secure command-line execution with robust security measures including command whitelisting, path
