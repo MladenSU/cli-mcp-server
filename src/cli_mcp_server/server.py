@@ -427,12 +427,12 @@ async def handle_list_tools() -> list[types.Tool]:
     commands_desc = (
         "all commands"
         if executor.security_config.allow_all_commands
-        else ", ".join(executor.security_config.allowed_commands)
+        else ", ".join(sorted(executor.security_config.allowed_commands))
     )
     flags_desc = (
         "all flags"
         if executor.security_config.allow_all_flags
-        else ", ".join(executor.security_config.allowed_flags)
+        else ", ".join(sorted(executor.security_config.allowed_flags))
     )
 
     return [
