@@ -167,8 +167,12 @@ class CommandExecutor:
             real_path = os.path.abspath(os.path.realpath(path))
             allowed_dir_real = os.path.abspath(os.path.realpath(self.allowed_dir))
 
-            # Check if the path starts with allowed_dir
-            return real_path.startswith(allowed_dir_real)
+            # Path must be the allowed dir itself or inside it. A plain string
+            # prefix check would accept siblings such as "/tmp/abcd" for "/tmp/abc".
+            allowed_prefix = allowed_dir_real.rstrip(os.sep) + os.sep
+            return real_path == allowed_dir_real or real_path.startswith(
+                allowed_prefix
+            )
         except Exception:
             return False
 
@@ -202,7 +206,7 @@ class CommandExecutor:
             # Process and validate arguments
             validated_args = []
             for arg in args:
-                is_explicit_path = (arg.startswith(("./", "../", "/")) and not arg.startswith("//")) or arg == "."
+                is_explicit_path = (arg.startswith(("./", "../", "/")) and not arg.startswith("//")) or arg in (".", "..")
                 
                 if arg.startswith("-"):
                     if (
