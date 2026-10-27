@@ -84,6 +84,65 @@ class CommandExecutor:
         except Exception as e:
             raise CommandSecurityError(f"Invalid path '{path}': {str(e)}")
 
+    @staticmethod
+    def _split_unquoted_operators(
+        command_string: str, shell_operators: List[str]
+    ) -> List[str]:
+        """
+        Splits a command string on shell operators that are not quoted or escaped.
+
+        Returns the pieces in order, with each operator found kept as its own
+        element (like ``re.split`` with a capturing group). Operators inside single
+        or double quotes, or escaped with a backslash, are literal text and stay
+        inside their piece.
+        """
+        operators = sorted(shell_operators, key=len, reverse=True)
+        pieces: List[str] = []
+        current: List[str] = []
+        quote = None
+        i = 0
+        while i < len(command_string):
+            ch = command_string[i]
+            if quote:
+                current.append(ch)
+                if ch == "\\" and quote == '"' and i + 1 < len(command_string):
+                    current.append(command_string[i + 1])
+                    i += 1
+                elif ch == quote:
+                    quote = None
+                i += 1
+                continue
+            if ch == "\\" and i + 1 < len(command_string):
+                current.append(ch)
+                current.append(command_string[i + 1])
+                i += 2
+                continue
+            if ch in ("'", '"'):
+                quote = ch
+                current.append(ch)
+                i += 1
+                continue
+            operator = next(
+                (op for op in operators if command_string.startswith(op, i)), None
+            )
+            if operator:
+                pieces.append("".join(current))
+                pieces.append(operator)
+                current = []
+                i += len(operator)
+                continue
+            current.append(ch)
+            i += 1
+        pieces.append("".join(current))
+        return pieces
+
+    def _find_shell_operators(
+        self, command_string: str, shell_operators: List[str]
+    ) -> List[str]:
+        """Returns the unquoted shell operators present in a command string."""
+        pieces = self._split_unquoted_operators(command_string, shell_operators)
+        return pieces[1::2]
+
     def validate_command(self, command_string: str) -> tuple[str, List[str]]:
         """
         Validates and parses a command string for security and formatting.
@@ -111,19 +170,17 @@ class CommandExecutor:
         shell_operators = ["&&", "||", "|", ">", ">>", "<", "<<", ";"]
 
         # Check if command contains shell operators
-        contains_shell_operator = any(
-            operator in command_string for operator in shell_operators
-        )
+        # (operators inside quotes are literal text, e.g. grep 'a|b')
+        found_operators = self._find_shell_operators(command_string, shell_operators)
+        contains_shell_operator = bool(found_operators)
 
         if contains_shell_operator:
             # Check if shell operators are allowed
             if not self.security_config.allow_shell_operators:
                 # If shell operators are not allowed, raise an error
-                for operator in shell_operators:
-                    if operator in command_string:
-                        raise CommandSecurityError(
-                            f"Shell operator '{operator}' is not supported. Set ALLOW_SHELL_OPERATORS=true to enable."
-                        )
+                raise CommandSecurityError(
+                    f"Shell operator '{found_operators[0]}' is not supported. Set ALLOW_SHELL_OPERATORS=true to enable."
+                )
 
             # Split the command by shell operators and validate each part
             return self._validate_command_with_operators(
@@ -250,13 +307,8 @@ class CommandExecutor:
         Raises:
             CommandSecurityError: If any part of the command fails validation.
         """
-        # Create a regex pattern to split by any of the shell operators
-        # We need to escape special regex characters in the operators
-        escaped_operators = [re.escape(op) for op in shell_operators]
-        pattern = "|".join(escaped_operators)
-
-        # Split the command string by shell operators, keeping the operators
-        parts = re.split(f"({pattern})", command_string)
+        # Split the command string by unquoted shell operators, keeping the operators
+        parts = self._split_unquoted_operators(command_string, shell_operators)
 
         # Filter out empty parts and whitespace-only parts
         parts = [part.strip() for part in parts if part.strip()]
@@ -329,15 +381,16 @@ class CommandExecutor:
 
             # Check if this is a command with shell operators
             shell_operators = ["&&", "||", "|", ">", ">>", "<", "<<", ";"]
-            use_shell = any(operator in command_string for operator in shell_operators)
+            found_operators = self._find_shell_operators(
+                command_string, shell_operators
+            )
+            use_shell = bool(found_operators)
 
             # Double-check that shell operators are allowed if they are present
             if use_shell and not self.security_config.allow_shell_operators:
-                for operator in shell_operators:
-                    if operator in command_string:
-                        raise CommandSecurityError(
-                            f"Shell operator '{operator}' is not supported. Set ALLOW_SHELL_OPERATORS=true to enable."
-                        )
+                raise CommandSecurityError(
+                    f"Shell operator '{found_operators[0]}' is not supported. Set ALLOW_SHELL_OPERATORS=true to enable."
+                )
 
             if use_shell:
                 # For commands with shell operators, execute with shell=True
